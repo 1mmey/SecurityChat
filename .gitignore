@@ -1,0 +1,29 @@
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.swp
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Log files
+*.log
+
+# Local environment variables
+.env
+.env.*
+!.env.example
