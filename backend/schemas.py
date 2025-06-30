@@ -1,0 +1,82 @@
+# 导入 Pydantic 的 BaseModel 用于创建数据模型，EmailStr 用于验证邮箱格式
+from pydantic import BaseModel, EmailStr
+# 导入 datetime 用于处理时间
+from datetime import datetime
+
+# --- 用户相关的 Pydantic 模型 (Schemas) ---
+
+# 用户模型的基础类，包含所有用户共有的字段
+class UserBase(BaseModel):
+    username: str
+    email: EmailStr  # 使用 EmailStr 类型会自动验证邮箱格式
+
+# 创建用户时需要的数据模型，继承自 UserBase
+# 在 UserBase 的基础上增加了 password 和 public_key 字段
+class UserCreate(UserBase):
+    password: str
+    public_key: str
+
+# 从数据库读取用户数据并返回给客户端时使用的数据模型
+class User(UserBase):
+    id: int
+    created_at: datetime
+
+    # Pydantic V1 的配置，允许模型从 ORM 对象（如 SQLAlchemy 模型）中读取数据
+    # 在 Pydantic V2 中，这个选项被重命名为 `from_attributes = True`
+    class Config:
+        orm_mode = True
+
+
+# --- 联系人相关的 Pydantic 模型 (Schemas) ---
+
+# 联系人模型的基础类
+class ContactBase(BaseModel):
+    friend_id: int
+
+# 创建联系人时使用的数据模型
+class ContactCreate(ContactBase):
+    pass  # 目前没有额外字段，直接继承
+
+# 从数据库读取联系人数据并返回时使用的数据模型
+class Contact(ContactBase):
+    id: int
+    user_id: int
+    status: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+# --- 消息相关的 Pydantic 模型 (Schemas) ---
+
+# 消息模型的基础类
+class MessageBase(BaseModel):
+    receiver_id: int
+    encrypted_content: str
+
+# 创建消息时使用的数据模型
+class MessageCreate(MessageBase):
+    pass  # 目前没有额外字段
+
+# 从数据库读取消息数据并返回时使用的数据模型
+class Message(MessageBase):
+    id: int
+    sender_id: int
+    sent_at: datetime
+    is_read: bool
+
+    class Config:
+        orm_mode = True
+
+
+# --- 用于身份认证的 Token 相关模型 ---
+
+# 响应中返回给客户端的 Token 模型
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+# 解码后的 Token 中包含的数据模型
+class TokenData(BaseModel):
+    username: str | None = None  # 用户名，可能为空
