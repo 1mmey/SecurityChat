@@ -15,7 +15,7 @@ from .connection_manager import manager
 
 # --- 数据库初始化 ---
 # 这行代码会根据我们在 models.py 中定义的 ORM 模型，在数据库中创建相应的表。
-# 它只在表不存在时创建，如果表已存在则不会有任何操作。
+# 它只在表不存在时创建，如果表已存在则不会有操作。
 models.Base.metadata.create_all(bind=engine)
 
 # --- FastAPI 应用实例 ---
@@ -27,9 +27,9 @@ app = FastAPI(
 )
 
 # --- CORS 中间件配置 ---
-# origins 列表指定了允许访问你的后端 API 的来源。
+# origins 列表指定了允许访问我们后端 API 的来源。
 # ["*"] 是一个通配符，表示允许任何来源的请求。
-# 这在开发阶段非常方便，但在生产环境中应该设置为更具体的前端地址。
+# 这在开发阶段比较方便，但在生产环境中应该设置为更具体的前端地址。
 origins = ["*"]
 
 app.add_middleware(
