@@ -71,10 +71,11 @@ contact_router = APIRouter(
 )
 
 @router.post("/", response_model=schemas.User)
-def create_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(user_data: schemas.UserCreate, request: Request, db: Session = Depends(get_db)):
     """
     创建新用户的 API 端点。
-    - **user**: 请求体，需要符合 `schemas.UserCreate` 的结构。
+    - **user_data**: 请求体，需要符合 `schemas.UserCreate` 的结构。
+    - **request**: FastAPI 的请求对象，用于获取客户端信息。
     - **db**: 依赖注入，自动获取数据库会话。
     """
     # 检查用户名是否已存在
@@ -87,8 +88,13 @@ def create_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user_email:
         raise HTTPException(status_code=400, detail="邮箱已被注册")
     
-    # 调用 crud 函数创建用户
-    return crud.create_user(db=db, user_data=user_data)
+    # 从请求中获取客户端的 IP 地址
+    client_ip = "127.0.0.1" # 默认值
+    if request.client:
+        client_ip = request.client.host
+
+    # 调用 crud 函数创建用户，并传入 IP 地址
+    return crud.create_user(db=db, user_data=user_data, ip_address=client_ip)
 
 @contact_router.post("/", response_model=schemas.Contact)
 def add_new_contact(
