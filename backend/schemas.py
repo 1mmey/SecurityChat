@@ -21,10 +21,10 @@ class User(UserBase):
     id: int
     created_at: datetime
 
-    # Pydantic V1 的配置，允许模型从 ORM 对象（如 SQLAlchemy 模型）中读取数据
-    # 在 Pydantic V2 中，这个选项被重命名为 `from_attributes = True`
-    class Config:
-        orm_mode = True
+    # Pydantic V2的配置，允许模型从ORM对象加载数据
+    model_config = {
+        "from_attributes": True
+    }
 
 
 # --- 联系人相关的 Pydantic 模型 (Schemas) ---
@@ -44,8 +44,9 @@ class Contact(ContactBase):
     status: str
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 # --- 消息相关的 Pydantic 模型 (Schemas) ---
@@ -66,8 +67,9 @@ class Message(MessageBase):
     sent_at: datetime
     is_read: bool
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 # --- 用于身份认证的 Token 相关模型 ---

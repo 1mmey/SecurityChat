@@ -53,5 +53,100 @@
     { "detail": "Email already registered" }
     ```
 
+## 3. 认证 (Authentication)
+
+### 3.1 用户登录 (获取 Token)
+
+使用用户名和密码进行登录，以获取用于后续请求认证的 JWT (JSON Web Token)。
+
+- **URL** : `/token`
+- **Method** : `POST`
+- **Request Body** :
+  - **Content-Type**: `application/x-www-form-urlencoded`
+  - **Form Data**:
+    - `username`: "your_username"
+    - `password`: "your_password"
+
+- **Success Response** :
+  - **Code** : `200 OK`
+  - **Content** :
+    ```json
+    {
+      "access_token": "string (the JWT token)",
+      "token_type": "bearer"
+    }
+    ```
+
+- **Error Response** :
+  - **Code** : `401 Unauthorized`
+  - **Content** :
+    ```json
+    { "detail": "Incorrect username or password" }
+    ```
+
+## 4. 联系人 (Contacts)
+
+**注意：** 所有联系人相关的接口都需要在请求头中提供认证信息。
+
+- **Header**: `Authorization: Bearer <your_jwt_token>`
+
+### 4.1 添加联系人
+
+将另一个用户添加为自己的联系人。
+
+- **URL** : `/me/contacts/`
+- **Method** : `POST`
+- **Request Body** :
+
+```json
+{
+  "friend_username": "string"
+}
+```
+
+- **Success Response** :
+  - **Code** : `200 OK`
+  - **Content** :
+    ```json
+    {
+        "id": 1,
+        "user_id": 1,
+        "friend_id": 2,
+        "status": "accepted",
+        "created_at": "2025-07-01T08:00:00.000Z"
+    }
+    ```
+
+- **Error Response** :
+  - **Code** : `404 Not Found` (如果好友用户名不存在)
+  - **Code** : `400 Bad Request` (如果已是好友或添加自己)
+  - **Code** : `401 Unauthorized` (如果 Token 无效或未提供)
+
+### 4.2 获取联系人列表
+
+获取当前登录用户的所有联系人。
+
+- **URL** : `/me/contacts/`
+- **Method** : `GET`
+
+- **Success Response** :
+  - **Code** : `200 OK`
+  - **Content** :
+    ```json
+    [
+      {
+        "id": 1,
+        "user_id": 1,
+        "friend_id": 2,
+        "status": "accepted",
+        "created_at": "2025-07-01T08:00:00.000Z"
+      }
+    ]
+    ```
+
+- **Error Response** :
+    - **Code** : `401 Unauthorized` (如果 Token 无效或未提供)
+
+
 ---
-*后续接口（如用户登录、联系人管理等）将在此处继续更新。*
+*后续接口（如消息收发等）将在此处继续更新。*
