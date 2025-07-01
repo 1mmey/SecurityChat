@@ -10,6 +10,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 # 从同级目录的 schemas.py 导入 TokenData 模型
 from . import schemas
+from . import crud, models
+from .database import get_db
+from sqlalchemy.orm import Session
 
 # --- 密码哈希部分 ---
 
@@ -81,9 +84,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         # 解码 JWT
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         # 从 payload 中获取用户名
-        username: str = payload.get("sub")
-        if username is None:
+        username_from_payload = payload.get("sub")
+        if username_from_payload is None or not isinstance(username_from_payload, str):
             raise credentials_exception
+        username: str = username_from_payload
         # 将用户名存入 TokenData 模型
         token_data = schemas.TokenData(username=username)
     except JWTError:
@@ -97,3 +101,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     
     # 目前，我们只返回包含用户名的 token_data
     return token_data
+
+# 新的依赖项：获取当前数据库中的活动用户对象
+def get_current_active_user(
+    current_user_data: schemas.TokenData = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> models.User:
+    if current_user_data.username is None:
+        # 这个异常理论上不会被触发，因为 get_current_user 已经检查过了
+        # 但这可以让类型检查器满意
+        raise HTTPException(status_code=401, detail="无法验证凭据")
+    
+    user = crud.get_user_by_username(db, username=current_user_data.username)
+    if user is None:
+        raise HTTPException(status_code=401, detail="用户不存在")
+    return user
