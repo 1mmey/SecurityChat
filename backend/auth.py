@@ -5,7 +5,7 @@ from jose import JWTError, jwt
 # 导入 datetime 用于处理时间，计算令牌过期时间
 from datetime import datetime, timedelta
 # 导入 FastAPI 的依赖项和异常处理
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, WebSocket, Query
 # 导入 FastAPI 的 OAuth2 密码模式
 from fastapi.security import OAuth2PasswordBearer
 # 从同级目录的 schemas.py 导入 TokenData 模型
@@ -13,6 +13,7 @@ from . import schemas
 from . import crud, models
 from .database import get_db
 from sqlalchemy.orm import Session
+from typing import Optional
 
 # --- 密码哈希部分 ---
 
@@ -115,4 +116,33 @@ def get_current_active_user(
     user = crud.get_user_by_username(db, username=current_user_data.username)
     if user is None:
         raise HTTPException(status_code=401, detail="用户不存在")
+    return user
+
+# WebSocket 的认证依赖
+async def get_current_user_from_ws(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+) -> Optional[models.User]:
+    if token is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token not provided")
+        return None
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: Optional[str] = payload.get("sub")
+        if username is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
+            return None
+    except JWTError:
+        # 在WebSocket中，我们不能直接抛出HTTPException
+        # 我们只能关闭连接
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token无效")
+        return None
+
+    user = crud.get_user_by_username(db, username=username)
+    if user is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="用户不存在")
+        return None
+    
     return user

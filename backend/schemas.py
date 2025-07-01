@@ -26,6 +26,31 @@ class User(UserBase):
         "from_attributes": True
     }
 
+# 用于安全地对外展示用户公开信息的模型
+class UserPublic(BaseModel):
+    id: int
+    username: str
+    is_online: bool
+
+    model_config = {
+        "from_attributes": True
+    }
+
+# 用于获取用户P2P连接信息的模型
+class UserConnectionInfo(BaseModel):
+    username: str
+    public_key: str
+    ip_address: str | None = None
+    port: int | None = None
+
+    model_config = {
+        "from_attributes": True
+    }
+
+# 用于客户端更新连接信息的模型
+class ConnectionInfoUpdate(BaseModel):
+    port: int
+
 
 # 更新用户数据，允许部分更新
 class UserUpdate(BaseModel):
@@ -70,21 +95,23 @@ class Contact(ContactBase):
 
 # --- 消息相关的 Pydantic 模型 (Schemas) ---
 
-# 消息模型的基础类
+# 消息模型的基础类，定义了所有消息共有的字段
 class MessageBase(BaseModel):
-    receiver_id: int
+    # 发送消息时，前端提供接收者的用户名更方便
+    recipient_username: str 
     encrypted_content: str
 
 # 创建消息时使用的数据模型
 class MessageCreate(MessageBase):
     pass  # 目前没有额外字段
 
-# 从数据库读取消息数据并返回时使用的数据模型
-class Message(MessageBase):
+# 从数据库读取消息数据并返回给客户端时使用的数据模型
+class Message(BaseModel):
     id: int
     sender_id: int
+    receiver_id: int
+    encrypted_content: str
     sent_at: datetime
-    is_read: bool
 
     model_config = {
         "from_attributes": True

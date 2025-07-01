@@ -1,152 +1,160 @@
 # 安全即时通讯系统 - 后端 API 文档
 
-本文档旨在为前端开发人员提供与后端服务进行交互所需的 API 接口信息。
+本文档为前端开发人员提供了与后端服务进行交互所需的全部 API 接口信息。
 
-## 1. API 文档地址
+## 0. 基础信息
 
-后端服务启动后，会自动生成一个交互式的 API 文档页面。您可以通过下面的地址访问它，里面包含了所有可用的 API 接口、请求参数和响应格式的详细说明。
+- **后端服务根地址**: `http://127.0.0.1:8000`
+- **自动交互式文档 (Swagger UI)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **认证方式**: 大部分接口使用 `Bearer Token` 进行认证。在登录后，将获取到的 `access_token` 放入请求头的 `Authorization` 字段中，格式为 `Bearer <your_jwt_token>`。
 
-- **API 文档 (Swagger UI):** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **备用 API 文档 (ReDoc):** [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+---
 
-**注意：** 访问前请确保后端服务正在本地运行。
+## 1. 认证 (Authentication)
 
-## 2. 用户 (Users)
-
-### 2.1 用户注册
+### 1.1 用户注册
 
 创建一个新用户。
 
 - **URL** : `/users/`
 - **Method** : `POST`
-- **Request Body** :
-
+- **Request Body**:
 ```json
 {
   "username": "string",
   "email": "user@example.com",
   "password": "string",
-  "public_key": "string"
+  "public_key": "string" 
 }
 ```
+> `public_key` 是用户的加密公钥，用于端到端加密。
 
-- **Success Response** :
-  - **Code** : `200 OK`
-  - **Content** :
-    ```json
-    {
-      "username": "string",
-      "email": "user@example.com",
-      "id": 0,
-      "created_at": "2025-06-30T17:35:28.123Z"
-    }
-    ```
+### 1.2 用户登录 (获取 Token)
 
-- **Error Response** :
-  - **Code** : `400 Bad Request`
-  - **Content** :
-    ```json
-    { "detail": "Username already registered" }
-    ```
-    或者
-    ```json
-    { "detail": "Email already registered" }
-    ```
-
-## 3. 认证 (Authentication)
-
-### 3.1 用户登录 (获取 Token)
-
-使用用户名和密码进行登录，以获取用于后续请求认证的 JWT (JSON Web Token)。
+使用用户名和密码登录，获取用于认证的 JWT。登录成功后，服务器会记录该用户的在线状态和IP地址。
 
 - **URL** : `/token`
 - **Method** : `POST`
-- **Request Body** :
-  - **Content-Type**: `application/x-www-form-urlencoded`
-  - **Form Data**:
-    - `username`: "your_username"
-    - `password`: "your_password"
+- **Request Body** (form-data): `username` 和 `password`
 
-- **Success Response** :
-  - **Code** : `200 OK`
-  - **Content** :
-    ```json
-    {
-      "access_token": "string (the JWT token)",
-      "token_type": "bearer"
-    }
-    ```
+### 1.3 用户登出
 
-- **Error Response** :
-  - **Code** : `401 Unauthorized`
-  - **Content** :
-    ```json
-    { "detail": "Incorrect username or password" }
-    ```
+主动通知服务器用户下线。
 
-## 4. 联系人 (Contacts)
+- **URL** : `/logout`
+- **Method** : `POST`
+- **Auth**: `Bearer Token`
+- **Success Response**: `200 OK` with `{"detail": "Logged out successfully"}`
 
-**注意：** 所有联系人相关的接口都需要在请求头中提供认证信息。
+---
 
-- **Header**: `Authorization: Bearer <your_jwt_token>`
+## 2. 联系人 (Contacts)
 
-### 4.1 添加联系人
+**认证**: 以下接口均需要 `Bearer Token`。
 
-将另一个用户添加为自己的联系人。
+### 2.1 添加联系人
 
 - **URL** : `/me/contacts/`
 - **Method** : `POST`
-- **Request Body** :
+- **Request Body**: `{"friend_username": "string"}`
 
-```json
-{
-  "friend_username": "string"
-}
-```
-
-- **Success Response** :
-  - **Code** : `200 OK`
-  - **Content** :
-    ```json
-    {
-        "id": 1,
-        "user_id": 1,
-        "friend_id": 2,
-        "status": "accepted",
-        "created_at": "2025-07-01T08:00:00.000Z"
-    }
-    ```
-
-- **Error Response** :
-  - **Code** : `404 Not Found` (如果好友用户名不存在)
-  - **Code** : `400 Bad Request` (如果已是好友或添加自己)
-  - **Code** : `401 Unauthorized` (如果 Token 无效或未提供)
-
-### 4.2 获取联系人列表
-
-获取当前登录用户的所有联系人。
+### 2.2 获取联系人列表
 
 - **URL** : `/me/contacts/`
 - **Method** : `GET`
+- **Success Response**: 返回一个用户对象列表，其中包含好友的详细信息，如 `id`, `username`, `is_online` 等。
 
-- **Success Response** :
-  - **Code** : `200 OK`
-  - **Content** :
-    ```json
-    [
-      {
-        "id": 1,
-        "user_id": 1,
-        "friend_id": 2,
-        "status": "accepted",
-        "created_at": "2025-07-01T08:00:00.000Z"
-      }
-    ]
-    ```
+### 2.3 获取在线好友列表 (高效)
 
-- **Error Response** :
-    - **Code** : `401 Unauthorized` (如果 Token 无效或未提供)
+高效地一次性获取所有在线好友的连接信息列表，用于构建好友在线状态面板。
 
+- **URL** : `/me/contacts/online`
+- **Method** : `GET`
+- **Auth**: `Bearer Token`
+- **Success Response**: 返回一个包含所有在线好友连接信息的对象列表。
+  ```json
+  [
+    {
+      "username": "user2_example",
+      "public_key": "key_for_user2_example",
+      "ip_address": "127.0.0.1",
+      "port": 6953
+    }
+  ]
+  ```
+
+---
+
+## 3. P2P 协调与消息
+
+### 3.1 获取用户连接信息 (P2P 关键)
+
+获取指定用户的连接信息，用于尝试建立 P2P 直连。
+
+- **URL** : `/users/{username}/connection-info`
+- **Method** : `GET`
+- **Auth**: `Bearer Token`
+- **Success Response**:
+```json
+{
+  "public_key": "string",
+  "ip_address": "string",
+  "port": integer
+}
+```
+- **Error Response**:
+  - `404 Not Found`: 如果用户不存在或**不在线**。
+
+### 3.2 WebSocket 消息中继 (P2P Fallback)
+
+当 P2P 直连失败时，使用此 WebSocket 作为备用方案进行实时消息转发。
+
+- **URL** : `ws://127.0.0.1:8000/ws`
+- **连接方式**:
+  - 必须在 URL 的查询参数中提供 Token 进行认证。
+  - 格式: `ws://127.0.0.1:8000/ws?token=<your_jwt_token>`
+- **行为**:
+  - 连接成功后，客户端会收到其他用户加入/离开的广播。
+  - 客户端可以向服务器发送文本消息，服务器会将其广播给**所有其他**在线的用户。
+  - 消息格式: `"{发送者用户名}: {消息内容}"`
+
+### 3.3 发送离线消息
+
+当检测到目标用户不在线时，客户端可调用此接口，将加密后的消息交由服务器存储。
+
+- **URL** : `/messages/`
+- **Method** : `POST`
+- **Auth**: `Bearer Token`
+- **Request Body**:
+```json
+{
+  "recipient_username": "string",
+  "encrypted_content": "string (base64 encoded)"
+}
+```
+- **Success Response**: 返回创建的消息对象。
+
+### 3.4 获取离线消息
+
+客户端登录后，应调用此接口拉取所有发给自己的离线消息。
+
+- **URL** : `/messages/`
+- **Method** : `GET`
+- **Auth**: `Bearer Token`
+- **Success Response**:
+  - 返回一个消息对象列表。
+  - **重要**: 此接口会自动将返回的消息在数据库中标记为"已读"。客户端再次调用将不会重复获取到相同的消息。
+```json
+[
+  {
+    "id": 1,
+    "sender_id": 15,
+    "receiver_id": 14,
+    "encrypted_content": "SGVsbG8gd29ybGQh",
+    "sent_at": "2025-07-01T10:00:02"
+  }
+]
+```
 
 ---
 *后续接口（如消息收发等）将在此处继续更新。*
