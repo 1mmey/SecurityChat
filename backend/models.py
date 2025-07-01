@@ -18,6 +18,7 @@ class User(Base):
     is_online = Column(Boolean, default=False) # 用户是否在线
     ip_address = Column(String, nullable=True) # 用户IP地址
     port = Column(Integer, nullable=True) # 用户端口号
+    last_seen = Column(DateTime(timezone=True), nullable=True) # 用户最后一次在线的时间
 
     # --- 关系定义 (Relationships) ---
     # 一个用户可以发送多条消息

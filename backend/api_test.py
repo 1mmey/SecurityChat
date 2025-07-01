@@ -47,6 +47,49 @@ def get_contacts(token):
     response = requests.get(url, headers=headers)
     return response
 
+def update_connection_info(token, port):
+    """Helper to update connection info (heartbeat)."""
+    url = f"{BASE_URL}/me/connection-info"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    data = {"port": port}
+    response = requests.put(url, data=json.dumps(data), headers=headers)
+    return response
+
+def get_connection_info(token, username):
+    """Helper to get another user's connection info."""
+    url = f"{BASE_URL}/users/{username}/connection-info"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url, headers=headers)
+    return response
+
+def logout_user(token):
+    """Helper to log out the current user."""
+    url = f"{BASE_URL}/logout"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.post(url, headers=headers)
+    return response
+
+def send_offline_message(token, recipient_username, content):
+    """Helper to send an offline message."""
+    url = f"{BASE_URL}/messages/"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    data = {"recipient_username": recipient_username, "encrypted_content": content}
+    response = requests.post(url, data=json.dumps(data), headers=headers)
+    return response
+
+def get_offline_messages(token):
+    """Helper to get offline messages for the current user."""
+    url = f"{BASE_URL}/messages/"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url, headers=headers)
+    return response
+
 # --- Main Test Execution ---
 
 if __name__ == "__main__":
@@ -101,5 +144,83 @@ if __name__ == "__main__":
     assert user2_id in friend_ids, "User2 is not in the contact list"
     
     print(f"✅ {user1_name}'s contact list correctly contains {user2_name}!")
+    print("\n🎉 All contact management tests passed! 🎉")
 
-    print("\n🎉 All contact management tests passed! 🎉") 
+
+    print("\n--- Starting Connection and Status Tests ---")
+
+    # 6. User 2 logs in to become online
+    print(f"--- 6. Logging in as {user2_name} to be online ---")
+    token2 = login_user(user2_name, password)
+    assert token2 is not None, "Failed to log in as user2"
+    print(f"✅ {user2_name} is now online.\n")
+    
+    # 7. User 1 sends a heartbeat and updates port
+    print(f"--- 7. {user1_name} sends heartbeat (updates port to 9999) ---")
+    resp_heartbeat = update_connection_info(token1, 9999)
+    print(f"Status: {resp_heartbeat.status_code}, Response: {resp_heartbeat.text}")
+    assert resp_heartbeat.status_code == 200, "Failed to send heartbeat"
+    print(f"✅ {user1_name} heartbeat successful.\n")
+
+    # 8. User 1 gets User 2's connection info
+    print(f"--- 8. {user1_name} gets {user2_name}'s connection info ---")
+    resp_conn_info = get_connection_info(token1, user2_name)
+    print(f"Status: {resp_conn_info.status_code}, Response: {resp_conn_info.text}")
+    assert resp_conn_info.status_code == 200, "Failed to get connection info for user2"
+    conn_info = resp_conn_info.json()
+    assert "public_key" in conn_info and "ip_address" in conn_info
+    print(f"✅ Successfully retrieved connection info for {user2_name}.\n")
+    
+    # 9. User 1 logs out
+    print(f"--- 9. {user1_name} logs out ---")
+    resp_logout = logout_user(token1)
+    print(f"Status: {resp_logout.status_code}, Response: {resp_logout.text}")
+    assert resp_logout.status_code == 200, "Failed to log out"
+    print(f"✅ {user1_name} logged out successfully.\n")
+
+    # 10. User 2 tries to get User 1's connection info (should fail)
+    print(f"--- 10. {user2_name} tries to get {user1_name}'s info (should fail as user1 is offline) ---")
+    resp_conn_fail = get_connection_info(token2, user1_name)
+    print(f"Status: {resp_conn_fail.status_code}, Response: {resp_conn_fail.text}")
+    assert resp_conn_fail.status_code == 404, "Should not get info for an offline user"
+    print(f"✅ Correctly failed to get info for offline user {user1_name}.")
+
+    print("\n🎉 All connection and status tests passed! 🎉")
+
+    print("\n--- Starting Offline Message Tests ---")
+
+    # 11. User 2 sends an offline message to User 1 (who is offline)
+    print(f"--- 11. {user2_name} sends an offline message to {user1_name} ---")
+    message_content = "SGVsbG8gd29ybGQh" # "Hello world!" in Base64
+    resp_send_msg = send_offline_message(token2, user1_name, message_content)
+    print(f"Status: {resp_send_msg.status_code}, Response: {resp_send_msg.text}")
+    assert resp_send_msg.status_code == 200, "Failed to send offline message"
+    print(f"✅ {user2_name} sent message to {user1_name} successfully.\n")
+
+    # 12. User 1 logs back in
+    print(f"--- 12. {user1_name} logs back in ---")
+    token1_new = login_user(user1_name, password)
+    assert token1_new is not None, "Failed to log in as user1 again"
+    print(f"✅ {user1_name} is online again.\n")
+
+    # 13. User 1 fetches their offline messages
+    print(f"--- 13. {user1_name} fetches offline messages ---")
+    resp_get_msgs = get_offline_messages(token1_new)
+    print(f"Status: {resp_get_msgs.status_code}, Response: {resp_get_msgs.text}")
+    assert resp_get_msgs.status_code == 200, "Failed to get offline messages"
+    messages = resp_get_msgs.json()
+    assert len(messages) == 1, "Should have received one message"
+    assert messages[0]["encrypted_content"] == message_content, "Message content mismatch"
+    assert messages[0]["sender_id"] == user2_id, "Sender ID mismatch"
+    print(f"✅ {user1_name} correctly received the message from {user2_name}.\n")
+
+    # 14. User 1 fetches messages again (should be empty)
+    print(f"--- 14. {user1_name} fetches again, should be empty ---")
+    resp_get_again = get_offline_messages(token1_new)
+    print(f"Status: {resp_get_again.status_code}, Response: {resp_get_again.text}")
+    assert resp_get_again.status_code == 200, "Second fetch failed"
+    messages_again = resp_get_again.json()
+    assert len(messages_again) == 0, "Messages should be empty after first fetch"
+    print("✅ Correctly received no new messages.")
+
+    print("\n🎉 All offline message tests passed! 🎉") 

@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 # 导入 SQLAlchemy 的 Session 用于类型提示
 from sqlalchemy.orm import Session
 # 从同级目录导入 models, schemas, 和 auth 模块
@@ -84,6 +85,11 @@ def update_user_status(db: Session, user: models.User, is_online: bool, ip_addre
     user.is_online = is_online  # type: ignore
     user.ip_address = ip_address  # type: ignore
     user.port = port  # type: ignore
+    
+    # 如果用户是在线状态，则更新 last_seen 时间戳
+    if is_online:
+        user.last_seen = datetime.utcnow() # type: ignore
+    
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -129,4 +135,37 @@ def get_contacts(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     """
     return db.query(models.Contact).filter(models.Contact.user_id == user_id).offset(skip).limit(limit).all()
 
-# --- 消息相关的 CRUD (待实现) ---
+# --- 消息相关的 CRUD ---
+
+def create_message(db: Session, sender_id: int, receiver_id: int, encrypted_content: str) -> models.Message:
+    """
+    在数据库中创建一条新的离线消息。
+    """
+    db_message = models.Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        encrypted_content=encrypted_content
+    )
+    db.add(db_message)
+    db.commit()
+    db.refresh(db_message)
+    return db_message
+
+def get_unread_messages_for_user(db: Session, user_id: int) -> list[models.Message]:
+    """
+    获取指定用户的所有未读离线消息。
+    """
+    messages = db.query(models.Message).filter(
+        models.Message.receiver_id == user_id,
+        models.Message.is_read == False
+    ).all()
+    return messages
+
+def mark_messages_as_read(db: Session, message_ids: list[int]):
+    """
+    将一组消息标记为已读。
+    """
+    db.query(models.Message).filter(
+        models.Message.id.in_(message_ids)
+    ).update({"is_read": True}, synchronize_session=False)
+    db.commit()
