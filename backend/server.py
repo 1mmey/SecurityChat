@@ -349,7 +349,7 @@ async def websocket_endpoint(
         # 广播用户离开的消息，并排除当前用户
         await manager.broadcast(f"用户 {user.username} 已离开", disconnected_user_id=user.id) # type: ignore
 
-# 你可以在这里添加更多的路由器，例如用于认证、消息等
+# 可以在这里添加更多的路由器，例如用于认证、消息等
 # from .routers import auth_router, messages_router
 # app.include_router(auth_router)
 # app.include_router(messages_router)

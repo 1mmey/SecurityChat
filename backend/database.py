@@ -10,6 +10,7 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./chat.db"
 # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
 
 # 创建数据库引擎
+# SQLite 是一种文件型数据库，默认状况下，它禁止在多个线程里共享同一个连接
 # connect_args={"check_same_thread": False} 是 SQLite 特有的配置，允许在多线程中使用
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
@@ -21,7 +22,7 @@ engine = create_engine(
 # bind=engine: 将会话绑定到我们创建的数据库引擎
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 创建一个基础模型类 (Base)，我们定义的 ORM 模型将继承这个类
+# 创建一个基础模型类 (Base)，我们定义的 ORM 模型将继承这个类，然后自定义数据表
 Base = declarative_base()
 
 # FastAPI 依赖项：获取数据库会话
