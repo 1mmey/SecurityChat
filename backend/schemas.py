@@ -38,6 +38,7 @@ class UserPublic(BaseModel):
 
 # 用于获取用户P2P连接信息的模型
 class UserConnectionInfo(BaseModel):
+    username: str
     public_key: str
     ip_address: str | None = None
     port: int | None = None

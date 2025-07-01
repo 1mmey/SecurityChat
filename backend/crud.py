@@ -135,6 +135,25 @@ def get_contacts(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     """
     return db.query(models.Contact).filter(models.Contact.user_id == user_id).offset(skip).limit(limit).all()
 
+def get_online_friends(db: Session, user_id: int) -> list[models.User]:
+    """
+    获取指定用户的所有在线好友。
+    """
+    # 步骤 1: 获取当前用户所有好友的 ID 列表
+    friend_ids_query = db.query(models.Contact.friend_id).filter(models.Contact.user_id == user_id)
+    friend_ids = [item[0] for item in friend_ids_query.all()]
+
+    if not friend_ids:
+        return []
+
+    # 步骤 2: 从好友 ID 列表中，查询所有在线的用户
+    online_friends = db.query(models.User).filter(
+        models.User.id.in_(friend_ids),
+        models.User.is_online == True
+    ).all()
+
+    return online_friends
+
 # --- 消息相关的 CRUD ---
 
 def create_message(db: Session, sender_id: int, receiver_id: int, encrypted_content: str) -> models.Message:

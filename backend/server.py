@@ -228,6 +228,18 @@ def read_contacts(
     contacts = crud.get_contacts(db, user_id=current_user.id, skip=skip, limit=limit) # type: ignore
     return contacts
 
+@contact_router.get("/online", response_model=List[schemas.UserConnectionInfo])
+def get_online_friends_info(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    高效地获取当前用户所有在线好友的连接信息列表。
+    """
+    assert current_user.id is not None
+    online_friends = crud.get_online_friends(db, user_id=current_user.id) # type: ignore
+    return online_friends
+
 # --- 消息 API 路由器 ---
 message_router = APIRouter(
     prefix="/messages",

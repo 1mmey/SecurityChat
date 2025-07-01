@@ -64,6 +64,25 @@
 - **Method** : `GET`
 - **Success Response**: 返回一个用户对象列表，其中包含好友的详细信息，如 `id`, `username`, `is_online` 等。
 
+### 2.3 获取在线好友列表 (高效)
+
+高效地一次性获取所有在线好友的连接信息列表，用于构建好友在线状态面板。
+
+- **URL** : `/me/contacts/online`
+- **Method** : `GET`
+- **Auth**: `Bearer Token`
+- **Success Response**: 返回一个包含所有在线好友连接信息的对象列表。
+  ```json
+  [
+    {
+      "username": "user2_example",
+      "public_key": "key_for_user2_example",
+      "ip_address": "127.0.0.1",
+      "port": 6953
+    }
+  ]
+  ```
+
 ---
 
 ## 3. P2P 协调与消息

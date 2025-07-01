@@ -90,6 +90,13 @@ def get_offline_messages(token):
     response = requests.get(url, headers=headers)
     return response
 
+def get_online_contacts(token):
+    """Helper to get the online contacts list."""
+    url = f"{BASE_URL}/me/contacts/online"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url, headers=headers)
+    return response
+
 # --- Main Test Execution ---
 
 if __name__ == "__main__":
@@ -171,6 +178,16 @@ if __name__ == "__main__":
     assert "public_key" in conn_info and "ip_address" in conn_info
     print(f"✅ Successfully retrieved connection info for {user2_name}.\n")
     
+    # 8.5 User 1 gets their online contacts list
+    print(f"--- 8.5. {user1_name} gets their online contacts list ---")
+    resp_online_list = get_online_contacts(token1)
+    print(f"Status: {resp_online_list.status_code}, Response: {resp_online_list.text}")
+    assert resp_online_list.status_code == 200, "Failed to get online contacts list"
+    online_list = resp_online_list.json()
+    assert len(online_list) == 1, "Online contacts list should have one user"
+    assert online_list[0]["username"] == user2_name, "Online contact username mismatch"
+    print(f"✅ Successfully retrieved online contacts list with {user2_name} in it.\n")
+
     # 9. User 1 logs out
     print(f"--- 9. {user1_name} logs out ---")
     resp_logout = logout_user(token1)
