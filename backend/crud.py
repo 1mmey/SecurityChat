@@ -47,11 +47,12 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
     """
     return db.query(models.User).offset(skip).limit(limit).all()
 
-def create_user(db: Session, user_data: schemas.UserCreate):
+def create_user(db: Session, user_data: schemas.UserCreate, ip_address: str):
     """
     在数据库中创建新用户
     :param db: 数据库会话
     :param user_data: 包含用户信息的 Pydantic 模型 (UserCreate)
+    :param ip_address: 用户的IP地址
     :return: 创建的 User 对象
     """
     # 从传入的 Pydantic 模型中获取明文密码，并进行哈希处理
@@ -62,7 +63,8 @@ def create_user(db: Session, user_data: schemas.UserCreate):
         username=user_data.username,
         email=user_data.email,
         password_hash=hashed_password,
-        public_key=user_data.public_key
+        public_key=user_data.public_key,
+        ip_address=ip_address  # 记录用户的IP地址
     )
     
     # 将新用户添加到会话中
