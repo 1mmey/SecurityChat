@@ -134,7 +134,7 @@ def read_contacts(
 
 
 ##
-@router.delete("/users/{user_id}", status_code=204)
+@router.delete("/users/self", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: int,db: Session = Depends(get_db),current_user: schemas.User = Depends(models.get_current_user)):
     
     """硬删除用户（物理删除，不可恢复）"""

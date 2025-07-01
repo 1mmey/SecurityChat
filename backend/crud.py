@@ -94,6 +94,7 @@ def update_user_status(db: Session, user: models.User, is_online: bool, ip_addre
     return user
 
 # 获取当前用户自身的信息
+'''
 def get_current_user(token: str = Depends(auth.oauth2_scheme),db: Session = Depends(database.get_db)) -> models.User:
 
     credentials_exception = HTTPException(
@@ -118,7 +119,7 @@ def get_current_user(token: str = Depends(auth.oauth2_scheme),db: Session = Depe
     user.last_login = datetime.now()
     db.commit()
     
-    return schemas.User.from_orm(user)
+    return schemas.User.from_orm(user) # '''
 
 # --- 联系人相关的 CRUD (待实现) ---
 
