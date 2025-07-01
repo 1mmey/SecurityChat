@@ -49,6 +49,29 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     # 调用 crud 函数创建用户
     return crud.create_user(db=db, user=user)
 
+###cyl 7.1  15:45
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(models.get_current_user)
+):
+    """硬删除用户（物理删除，不可恢复）"""
+    # 1. 查询用户是否存在
+    db_user = crud.get_user(db, user_id=user_id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # 2. 检查权限（示例：仅管理员或用户本人可删除）
+    if current_user.id != db_user.id:           #and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    
+    # 3. 执行硬删除（物理删除）
+    db.delete(db_user)
+    db.commit()
+    
+    return None  # 返回 204 No Content 表示删除成功   
+
 # 将用户路由器包含到主应用中
 app.include_router(router)
 

@@ -1,5 +1,5 @@
 # 导入 Pydantic 的 BaseModel 用于创建数据模型，EmailStr 用于验证邮箱格式
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr,Optional
 # 导入 datetime 用于处理时间
 from datetime import datetime
 
@@ -25,6 +25,25 @@ class User(UserBase):
     # 在 Pydantic V2 中，这个选项被重命名为 `from_attributes = True`
     class Config:
         orm_mode = True
+
+###cyl 7.1  15:45
+# 更新用户数据，允许部分更新
+class UserUpdate(BaseModel):
+    
+    # 更新用户信息时使用的数据模型
+    # 所有字段均为可选，允许部分更新
+    username: Optional[str] = None        # 可选更新
+    email: Optional[EmailStr] = None      # 可选更新，自动验证邮箱格式
+    password: Optional[str] = None        # 可选更新
+    public_key: Optional[str] = None      # 可选更新
+    
+    class Config:
+        orm_mode = True  # 允许从 ORM 对象读取数据
+
+###cyl 7.1  15:45
+# 删除用户数据(没有软删字段)
+class UserSoftDelete(BaseModel):
+    pass
 
 
 # --- 联系人相关的 Pydantic 模型 (Schemas) ---

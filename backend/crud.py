@@ -1,7 +1,11 @@
 # 导入 SQLAlchemy 的 Session 用于类型提示
 from sqlalchemy.orm import Session
 # 从同级目录导入 models, schemas, 和 auth 模块
-from . import models, schemas, auth
+from . import models, schemas, auth,database
+
+from fastapi import Depends, HTTPException, status
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
 
 # --- 用户相关的 CRUD (Create, Read, Update, Delete) 操作 ---
 
@@ -65,6 +69,35 @@ def create_user(db: Session, user: schemas.UserCreate):
     # 刷新 db_user 实例，以获取数据库生成的新数据（如 ID）
     db.refresh(db_user)
     return db_user
+
+# 获取当前用户自身的信息
+def get_current_user(
+    token: str = Depends(auth.oauth2_scheme),
+    db: Session = Depends(database.get_db)
+) -> models.User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authentication credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        username: str = payload.get("sub")
+        user_id: int = payload.get("user_id")
+        if username is None or user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    
+    user.last_login = datetime.now()
+    db.commit()
+    
+    return schemas.User.from_orm(user)
 
 # --- 联系人相关的 CRUD (待实现) ---
 
