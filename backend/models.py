@@ -15,6 +15,9 @@ class User(Base):
     password_hash = Column(String, nullable=False)  # 存储哈希后的密码，不为空
     public_key = Column(Text, nullable=False)  # 用户的公钥，不为空
     created_at = Column(DateTime(timezone=True), server_default=func.now())  # 创建时间，带时区，默认为当前时间
+    is_online = Column(Boolean, default=False) # 用户是否在线
+    ip_address = Column(String, nullable=True) # 用户IP地址
+    port = Column(Integer, nullable=True) # 用户端口号
 
     # --- 关系定义 (Relationships) ---
     # 一个用户可以发送多条消息
