@@ -127,13 +127,10 @@ def read_contacts(
     return contacts
 
 
-###cyl 7.1  15:45
+##
 @router.delete("/users/{user_id}", status_code=204)
-def delete_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(models.get_current_user)
-):
+def delete_user(user_id: int,db: Session = Depends(get_db),current_user: schemas.User = Depends(models.get_current_user)):
+    
     """硬删除用户（物理删除，不可恢复）"""
     # 1. 查询用户是否存在
     db_user = crud.get_user(db, user_id=user_id)

@@ -26,7 +26,7 @@ class User(UserBase):
         "from_attributes": True
     }
 
-###cyl 7.1  15:45
+
 # 更新用户数据，允许部分更新
 class UserUpdate(BaseModel):
     
@@ -40,10 +40,10 @@ class UserUpdate(BaseModel):
     class Config:
         orm_mode = True  # 允许从 ORM 对象读取数据
 
-###cyl 7.1  15:45
+
 # 删除用户数据(没有软删字段)
-class UserSoftDelete(BaseModel):
-    pass
+#class UserSoftDelete(BaseModel):
+#    pass
 
 
 # --- 联系人相关的 Pydantic 模型 (Schemas) ---

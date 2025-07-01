@@ -92,10 +92,8 @@ def update_user_status(db: Session, user: models.User, is_online: bool, ip_addre
     return user
 
 # 获取当前用户自身的信息
-def get_current_user(
-    token: str = Depends(auth.oauth2_scheme),
-    db: Session = Depends(database.get_db)
-) -> models.User:
+def get_current_user(token: str = Depends(auth.oauth2_scheme),db: Session = Depends(database.get_db)) -> models.User:
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid authentication credentials",
