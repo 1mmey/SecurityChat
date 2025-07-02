@@ -7,6 +7,7 @@ from fastapi_utils.tasks import repeat_every
 # 导入 SQLAlchemy 的 Session 用于类型提示
 from sqlalchemy.orm import Session
 from typing import List
+import json
 
 # 从同级目录导入我们创建的模块
 from . import crud, models, schemas, auth
@@ -382,26 +383,95 @@ async def websocket_endpoint(
     db: Session = Depends(get_db),
     user: models.User = Depends(auth.get_current_user_from_ws)
 ):
-    if not user:
-        # 如果get_current_user_from_ws返回None，则不建立连接
-        # get_current_user_from_ws 内部已经处理了拒绝逻辑
+    """
+    处理 WebSocket 连接、消息转发和离线消息。
+    - 连接时: 验证用户，推送离线消息。
+    - 接收消息时: 根据接收者是否在线，直接转发或存为离线消息。
+    - 断开时: 更新用户在线状态。
+    """
+    if not user or not user.id: # type: ignore
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await manager.connect(websocket, user.id) # type: ignore
-    await manager.broadcast(f"用户 {user.username} 加入了聊天", disconnected_user_id=user.id) # type: ignore
+    user_id = user.id
+    
+    # --- 1. 用户连接 ---
+    await manager.connect(websocket, user_id) # type: ignore
+    crud.update_user_status(db=db, user=user, is_online=True)
+
+    # --- 2. 推送离线消息 ---
+    try:
+        unread_messages = crud.get_unread_messages_for_user(db, user_id=user_id) # type: ignore
+        if unread_messages:
+            print(f"为用户 {user.username} (ID: {user_id}) 推送 {len(unread_messages)} 条离线消息。")
+            message_ids_to_mark_read = []
+            for msg in unread_messages:
+                if msg.sender:
+                    message_data = {
+                        "type": "offline_message",
+                        "sender_username": msg.sender.username,
+                        "content": msg.encrypted_content,
+                        "timestamp": msg.sent_at.isoformat()
+                    }
+                    await manager.send_personal_message(json.dumps(message_data), user_id) # type: ignore
+                message_ids_to_mark_read.append(msg.id)
+            
+            # 一次性将所有已推送的消息标记为已读
+            if message_ids_to_mark_read:
+                crud.mark_messages_as_read(db, message_ids=message_ids_to_mark_read)
+
+    except Exception as e:
+        print(f"推送离线消息时出错: {e}")
+
+    # --- 3. 广播上线通知 ---
+    await manager.broadcast(f"系统消息: 用户 {user.username} 已上线。")
+
+    # --- 4. 循环处理消息 ---
     try:
         while True:
             data = await websocket.receive_text()
-            # 这里可以处理接收到的消息，例如，转发给特定用户
-            # 为了简单起见，我们只是广播它
-            await manager.broadcast(f"{user.username}: {data}")
+            try:
+                message_data = json.loads(data)
+                recipient_username = message_data.get("recipient_username")
+                content = message_data.get("content")
+
+                if not recipient_username or not content:
+                    await manager.send_personal_message(json.dumps({"error": "消息格式错误，需要 recipient_username 和 content"}), user_id) # type: ignore
+                    continue
+                
+                recipient = crud.get_user_by_username(db, username=recipient_username)
+                if not recipient or not recipient.id: # type: ignore
+                    await manager.send_personal_message(json.dumps({"error": f"用户 {recipient_username} 不存在"}), user_id) # type: ignore
+                    continue
+                
+                recipient_id = recipient.id
+                payload = {
+                    "type": "p2p_message",
+                    "sender_username": user.username,
+                    "content": content,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+                if recipient_id in manager.active_connections: # type: ignore
+                    await manager.send_personal_message(json.dumps(payload), recipient_id) # type: ignore
+                else:
+                    crud.create_message(db, sender_id=user_id, receiver_id=recipient_id, encrypted_content=content) # type: ignore
+                    await manager.send_personal_message(json.dumps({"status": f"用户 {recipient_username} 当前离线，消息已保存。"}), user_id) # type: ignore
+
+            except json.JSONDecodeError:
+                await manager.send_personal_message(json.dumps({"error": "无效的JSON格式"}), user_id) # type: ignore
+            except Exception as e:
+                print(f"处理WebSocket消息时出错: {e}")
+                await manager.send_personal_message(json.dumps({"error": "处理消息时发生内部错误"}), user_id) # type: ignore
+
     except WebSocketDisconnect:
-        print(f"用户 {user.username} 的WebSocket连接断开")
+        print(f"用户 {user.username} (ID: {user_id}) 的WebSocket连接断开") # type: ignore
+    
     finally:
-        manager.disconnect(user.id) # type: ignore
-        print(f"用户 {user.username} 已离开")
-        # 广播用户离开的消息，并排除当前用户
-        await manager.broadcast(f"用户 {user.username} 已离开", disconnected_user_id=user.id) # type: ignore
+        # --- 5. 用户断开连接 ---
+        manager.disconnect(user_id) # type: ignore
+        crud.update_user_status(db=db, user=user, is_online=False)
+        await manager.broadcast(f"系统消息: 用户 {user.username} 已下线。")
 
 # 你可以在这里添加更多的路由器，例如用于认证、消息等
 # from .routers import auth_router, messages_router
@@ -409,4 +479,5 @@ async def websocket_endpoint(
 # app.include_router(messages_router)
 
 # 空编辑，用于触发 uvicorn 重载
+# 再次添加一个空行以确保更改被检测到
 

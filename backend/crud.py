@@ -258,7 +258,8 @@ def get_online_friends(db: Session, user_id: int) -> list[models.User]:
 
 def create_message(db: Session, sender_id: int, receiver_id: int, encrypted_content: str) -> models.Message:
     """
-    在数据库中创建一条新的离线消息。
+    在数据库中创建一条新的消息记录。
+    默认情况下，新消息的 is_read 状态为 False。
     """
     db_message = models.Message(
         sender_id=sender_id,

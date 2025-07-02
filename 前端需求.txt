@@ -1,0 +1,62 @@
+基于现有代码，后端只需要增加最少量的功能来支持CS+P2P架构：
+1. WebSocket消息转发 (现有基础上增强)
+在现有 /ws 端点基础上添加：
+python# connection_manager.py 增强
+class ConnectionManager:
+    async def send_to_user(self, user_id: int, message: str):
+        """发送消息给特定用户"""
+        
+    async def relay_message(self, sender_id: int, receiver_id: int, encrypted_content: str):
+        """中转加密消息给指定用户"""
+2. 好友在线状态推送 (1个API)
+新增端点：
+GET /me/contacts/online-status
+功能： 返回所有好友的实时在线状态和连接信息
+3. 离线消息主动推送 (WebSocket增强)
+在用户连接WebSocket时：
+
+自动推送所有离线消息
+推送完成后标记为已读
+
+4. P2P连接信息获取 (已有，稍微调整)
+现有API调整：
+GET /users/{username}/connection-info
+返回： 用户的IP、端口、公钥（用于P2P连接）
+具体实现文件
+1. connection_manager.py (增强现有)
+python# 添加用户ID到WebSocket的映射
+# 添加消息转发功能
+# 添加离线消息推送功能
+2. main.py (WebSocket端点增强)
+python@app.websocket("/ws")
+async def websocket_endpoint():
+    # 连接建立后推送离线消息
+    # 接收消息后转发给指定用户
+    # 广播在线状态变化
+3. 数据库无需修改
+现有的 User、Message、Contact 表完全够用
+消息流程 (后端视角)
+P2P成功时：
+
+后端只负责维护在线状态
+消息直接在前端间传输
+
+P2P失败时：
+
+前端通过WebSocket发送加密消息
+后端转发给目标用户的WebSocket
+如果目标用户离线，存储为离线消息
+
+离线消息：
+
+用户上线连接WebSocket时自动推送
+推送完成后标记已读
+
+总结：后端最少改动
+
+WebSocket管理器增强 - 支持指定用户消息转发
+添加1个API - 获取好友在线状态列表
+离线消息推送 - WebSocket连接时自动推送
+现有API调整 - 返回完整连接信息
+
+核心原则： 后端只做"哑管道"，所有智能逻辑（P2P尝试、回退决策、加密解密）都在前端处理。
