@@ -13,7 +13,10 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./chat.db"
 # SQLite 是一种文件型数据库，默认状况下，它禁止在多个线程里共享同一个连接
 # connect_args={"check_same_thread": False} 是 SQLite 特有的配置，允许在多线程中使用
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    pool_size=20,          # 设置连接池中的连接数为20
+    max_overflow=10        # 设置连接池的溢出上限为10
 )
 
 # 创建一个数据库会话类 (SessionLocal)
