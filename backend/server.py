@@ -172,6 +172,18 @@ def create_user(user_data: schemas.UserCreate, request: Request, db: Session = D
     # 调用 crud 函数创建用户，并传入 IP 地址
     return crud.create_user(db=db, user_data=user_data, ip_address=client_ip)
 
+@router.get("/search/{query}", response_model=List[schemas.UserPublic])
+def search_users(
+    query: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    根据用户名关键词模糊搜索用户。
+    """
+    users = crud.search_users_by_username(db, username_query=query)
+    return users
+
 @router.get("/{username}/connection-info", response_model=schemas.UserConnectionInfo)
 def get_user_connection_info(
     username: str,

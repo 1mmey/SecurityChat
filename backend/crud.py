@@ -44,6 +44,19 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
     """
     return db.query(models.User).offset(skip).limit(limit).all()
 
+def search_users_by_username(db: Session, username_query: str, skip: int = 0, limit: int = 10):
+    """
+    根据用户名模糊搜索用户
+    :param db: 数据库会话
+    :param username_query: 用户名搜索关键词
+    :param skip: 跳过的记录数
+    :param limit: 返回的最大记录数
+    :return: User 对象列表
+    """
+    return db.query(models.User).filter(
+        models.User.username.ilike(f"%{username_query}%")
+    ).offset(skip).limit(limit).all()
+
 def create_user(db: Session, user_data: schemas.UserCreate, ip_address: str):
     """
     在数据库中创建新用户

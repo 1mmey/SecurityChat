@@ -125,6 +125,13 @@ def update_connection_info(token, port):
     response = requests.put(url, data=json.dumps(data), headers=headers)
     return response
 
+def search_user(token, query):
+    """Helper to search for a user by username."""
+    url = f"{BASE_URL}/users/search/{query}"
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url, headers=headers)
+    return response
+
 # --- Main Test Execution ---
 
 if __name__ == "__main__":
@@ -156,6 +163,17 @@ if __name__ == "__main__":
     token1 = login_user(user1_name, password)
     assert token1 is not None, "Failed to log in as user1"
     print(f"✅ {user1_name} logged in successfully\n")
+
+    # --- User Search Tests ---
+    print("\n--- Starting User Search Tests ---")
+    search_query = f"user2_{timestamp}"
+    print(f"--- {user1_name} searches for '{search_query}' ---")
+    resp_search = search_user(token1, search_query)
+    assert resp_search.status_code == 200, f"Search failed. Response: {resp_search.text}"
+    search_results = resp_search.json()
+    assert len(search_results) > 0, "Search returned no results."
+    assert any(u['username'] == user2_name for u in search_results), f"User {user2_name} not found in search results."
+    print(f"✅ Successfully found {user2_name}.\n")
 
     print(f"--- 4. {user1_name} sends friend request to {user2_name} ---")
     resp_send_req = send_friend_request(token1, user2_id)
