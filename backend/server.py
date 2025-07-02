@@ -192,28 +192,74 @@ def get_user_connection_info(
 
     return target_user
 
-@contact_router.post("/", response_model=schemas.Contact)
+@contact_router.post("/", response_model=schemas.Contact, status_code=status.HTTP_202_ACCEPTED)
 def add_new_contact(
     contact: schemas.ContactCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     """
-    添加新的好友。
+    发送一个新的好友请求。
     """
-    # 检查要添加的好友是否存在
-    friend = crud.get_user(db, user_id=contact.friend_id)
-    if not friend:
-        raise HTTPException(status_code=404, detail="要添加的好友不存在")
+    # 确保当前用户有ID
+    if current_user.id is None:
+        raise HTTPException(status_code=403, detail="无法识别当前用户")
 
-    # 确保当前用户有ID，并让类型检查器满意
-    assert current_user.id is not None, "当前用户没有ID"
+    # 调用 crud 函数发送请求
+    new_contact_request = crud.add_contact(db=db, user_id=current_user.id, friend_id=contact.friend_id) # type: ignore
+    
+    if new_contact_request is None:
+        # add_contact 返回 None 的情况包括：对方不存在、添加自己、关系已存在
+        # 这里需要给出一个通用的错误，或者在 crud 中细化错误类型
+        raise HTTPException(status_code=400, detail="无法发送好友请求：用户不存在、不能添加自己或请求已存在")
+        
+    return new_contact_request
 
-    # 不能添加自己为好友
-    if current_user.id == contact.friend_id:  # type: ignore
-        raise HTTPException(status_code=400, detail="不能添加自己为好友")
+@contact_router.put("/{friend_id}", response_model=schemas.Contact)
+def accept_friend_request(
+    friend_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    接受一个好友请求。
+    这里的 friend_id 是指 *发送* 好友请求给你的用户的ID。
+    """
+    if current_user.id is None:
+        raise HTTPException(status_code=403, detail="无法识别当前用户")
 
-    return crud.add_contact(db=db, user_id=current_user.id, friend_id=contact.friend_id)  # type: ignore
+    updated_contact = crud.update_contact_status(
+        db=db,
+        user_id=current_user.id, # type: ignore
+        friend_id=friend_id,     # 发起者
+        status="accepted"
+    )
+
+    if updated_contact is None:
+        raise HTTPException(status_code=404, detail="未找到待处理的好友请求")
+
+    return updated_contact
+
+@contact_router.delete("/{friend_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_friend_or_request(
+    friend_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    删除好友或拒绝/取消好友请求。
+    此操作会删除双方的关系记录。
+    """
+    if current_user.id is None:
+        raise HTTPException(status_code=403, detail="无法识别当前用户")
+
+    success = crud.delete_contact(db=db, user_id=current_user.id, friend_id=friend_id) # type: ignore
+
+    if not success:
+        raise HTTPException(status_code=404, detail="未找到该好友关系或请求")
+
+    # 成功时，FastAPI 会自动返回 204 状态码，无需返回内容
+    return
 
 @contact_router.get("/", response_model=List[schemas.Contact])
 def read_contacts(
@@ -227,6 +273,22 @@ def read_contacts(
     """
     contacts = crud.get_contacts(db, user_id=current_user.id, skip=skip, limit=limit) # type: ignore
     return contacts
+
+@contact_router.get("/pending", response_model=List[schemas.Contact])
+def read_pending_requests(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    获取当前用户收到的、待处理的好友请求列表。
+    """
+    if current_user.id is None:
+        raise HTTPException(status_code=403, detail="无法识别当前用户")
+        
+    requests = crud.get_pending_requests(db, user_id=current_user.id, skip=skip, limit=limit) # type: ignore
+    return requests
 
 @contact_router.get("/online", response_model=List[schemas.UserConnectionInfo])
 def get_online_friends_info(

@@ -97,27 +97,36 @@ def update_user_status(db: Session, user: models.User, is_online: bool, ip_addre
 
 # --- 联系人相关的 CRUD (待实现) ---
 
-def add_contact(db: Session, user_id: int, friend_id: int):
+def add_contact(db: Session, user_id: int, friend_id: int) -> Optional[models.Contact]:
     """
-    在数据库中添加好友关系
+    在数据库中创建一条好友请求 (status='pending')
     :param db: 数据库会话
-    :param user_id: 当前用户的 ID
-    :param friend_id: 要添加的好友的 ID
-    :return: 创建的 Contact 对象
+    :param user_id: 发起请求的用户的 ID
+    :param friend_id: 被请求的用户的 ID
+    :return: 创建的 Contact 对象或 None
     """
-    # 检查好友关系是否已经存在
+    # 检查反向请求是否已存在且被接受，或者自己是否已发送过请求
     existing_contact = db.query(models.Contact).filter(
-        models.Contact.user_id == user_id,
-        models.Contact.friend_id == friend_id
+        ((models.Contact.user_id == user_id) & (models.Contact.friend_id == friend_id)) |
+        ((models.Contact.user_id == friend_id) & (models.Contact.friend_id == user_id) & (models.Contact.status == "accepted"))
     ).first()
     
     if existing_contact:
-        return existing_contact
+        return None # 如果关系已存在，则不进行任何操作
+
+    # 检查自己是否是对方
+    if user_id == friend_id:
+        return None
+
+    # 检查对方用户是否存在
+    friend_user = get_user(db, friend_id)
+    if not friend_user:
+        return None
 
     db_contact = models.Contact(
         user_id=user_id,
         friend_id=friend_id,
-        status="accepted"  # 默认为直接接受
+        status="pending"  # 默认为待处理
     )
     db.add(db_contact)
     db.commit()
@@ -126,21 +135,99 @@ def add_contact(db: Session, user_id: int, friend_id: int):
 
 def get_contacts(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     """
-    根据用户ID获取其好友列表
+    根据用户ID获取其已接受的好友列表 (status='accepted')
     :param db: 数据库会话
     :param user_id: 用户ID
     :param skip: 分页查询的起始位置
     :param limit: 每页的数量
     :return: 联系人列表
     """
-    return db.query(models.Contact).filter(models.Contact.user_id == user_id).offset(skip).limit(limit).all()
+    return db.query(models.Contact).filter(
+        models.Contact.user_id == user_id,
+        models.Contact.status == "accepted"
+    ).offset(skip).limit(limit).all()
+
+def get_pending_requests(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    """
+    根据用户ID获取其收到的、待处理的好友请求列表
+    :param db: 数据库会话
+    :param user_id: 用户ID (被请求者)
+    :param skip: 分页查询的起始位置
+    :param limit: 每页的数量
+    :return: 联系人列表 (请求)
+    """
+    return db.query(models.Contact).filter(
+        models.Contact.friend_id == user_id,
+        models.Contact.status == "pending"
+    ).offset(skip).limit(limit).all()
+
+def get_contact_request(db: Session, user_id: int, friend_id: int) -> Optional[models.Contact]:
+    """查找特定的好友关系/请求"""
+    return db.query(models.Contact).filter(
+        models.Contact.user_id == user_id,
+        models.Contact.friend_id == friend_id
+    ).first()
+
+def update_contact_status(db: Session, user_id: int, friend_id: int, status: str) -> Optional[models.Contact]:
+    """
+    更新好友关系的状态。主要用于接受好友请求。
+    如果接受 (status='accepted')，则创建反向关系。
+    """
+    # 找到别人发给自己的请求: user_id=friend_id, friend_id=user_id
+    contact_request = db.query(models.Contact).filter(
+        models.Contact.user_id == friend_id,
+        models.Contact.friend_id == user_id
+    ).first()
+
+    if not contact_request:
+        return None # 没有找到请求
+
+    contact_request.status = status # type: ignore
+    
+    if status == "accepted":
+        # 如果是接受请求，则创建一条反向的、已接受的好友关系，使关系双向化
+        reciprocal_contact = get_contact_request(db, user_id=user_id, friend_id=friend_id)
+        if not reciprocal_contact:
+            reciprocal_contact = models.Contact(
+                user_id=user_id, 
+                friend_id=friend_id, 
+                status="accepted"
+            )
+            db.add(reciprocal_contact)
+
+    db.commit()
+    db.refresh(contact_request)
+    return contact_request
+
+def delete_contact(db: Session, user_id: int, friend_id: int) -> bool:
+    """
+    删除两个用户之间的好友关系（双向删除）
+    可用于拒绝好友请求或删除好友
+    """
+    # 查询正向和反向的所有关系
+    contacts_to_delete = db.query(models.Contact).filter(
+        ((models.Contact.user_id == user_id) & (models.Contact.friend_id == friend_id)) |
+        ((models.Contact.user_id == friend_id) & (models.Contact.friend_id == user_id))
+    ).all()
+
+    if not contacts_to_delete:
+        return False # 没有找到关系
+
+    for contact in contacts_to_delete:
+        db.delete(contact)
+    
+    db.commit()
+    return True
 
 def get_online_friends(db: Session, user_id: int) -> list[models.User]:
     """
     获取指定用户的所有在线好友。
     """
-    # 步骤 1: 获取当前用户所有好友的 ID 列表
-    friend_ids_query = db.query(models.Contact.friend_id).filter(models.Contact.user_id == user_id)
+    # 步骤 1: 获取当前用户所有已接受的好友的 ID 列表
+    friend_ids_query = db.query(models.Contact.friend_id).filter(
+        models.Contact.user_id == user_id,
+        models.Contact.status == "accepted"
+    )
     friend_ids = [item[0] for item in friend_ids_query.all()]
 
     if not friend_ids:
