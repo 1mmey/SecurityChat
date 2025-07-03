@@ -448,29 +448,30 @@ const setupWebSocketListeners = async () => {
 
     // 设置好友列表映射
     if (props.friendsList.length > 0) {
-      wsManagerInstance.setFriendsMap(props.friendsList)
+        wsManagerInstance.setFriendsMap(props.friendsList)
     }
     
     // 移除旧的监听器（避免重复）
     if (messageListener) {
-      wsManagerInstance.removeMessageListener(messageListener)
+        wsManagerInstance.removeMessageListener(messageListener)
     }
     if (connectionListener) {
-      wsManagerInstance.removeConnectionListener(connectionListener)
+        wsManagerInstance.removeConnectionListener(connectionListener)
     }
     
     // 设置新的消息处理器
     messageListener = (data) => {
-      console.log('📨 ChatWindow收到WebSocket消息:', data)
+      console.log('📨 ChatWindow收到消息:', data)
       handleIncomingWebSocketMessage(data)
     }
-    wsManagerInstance.addMessageListener(messageListener)
+      wsManagerInstance.addMessageListener(messageListener)
     
     // 设置连接状态处理器
     connectionListener = (status, event) => {
       console.log('🔌 WebSocket状态变化:', status)
       connectionStatus.value = status
       
+      // 🆕 添加状态提示
       if (status === 'connected') {
         ElMessage.success('WebSocket连接成功')
       } else if (status === 'error') {
@@ -479,11 +480,11 @@ const setupWebSocketListeners = async () => {
         ElMessage.warning('WebSocket连接已断开')
       }
     }
-    wsManagerInstance.addConnectionListener(connectionListener)
+      wsManagerInstance.addConnectionListener(connectionListener)
     
-    // 连接WebSocket
+    // 🆕 修改连接方式
     connectionStatus.value = 'connecting'
-    const success = wsManagerInstance.connect()
+    const success =   wsManagerInstance.connect()
     
     if (!success) {
       console.error('WebSocket连接启动失败')
@@ -498,10 +499,13 @@ const setupWebSocketListeners = async () => {
   }
 }
 
+
 const handleIncomingWebSocketMessage = (data) => {
   console.log('📨 处理WebSocket消息:', data)
-  console.log('📨 消息类型:', data.type)
+  console.log('📨 当前选中好友:', selectedFriend.value?.username)
+  console.log('📨 当前用户名:', getCurrentUsername())
   
+  // 根据新的chat.js结构处理消息
   if (data.type === 'message') {
     // 处理来自WebSocketManager包装的消息
     const message = data.message
@@ -509,10 +513,18 @@ const handleIncomingWebSocketMessage = (data) => {
       console.log('📨 处理封装消息:', message)
       addReceivedMessage(message)
     }
-  } else if (data.type === 'p2p_message' || data.type === 'offline_message') {
-    // 🆕 处理后端直接发送的P2P消息和离线消息
-    console.log('📨 处理P2P/离线消息:', data)
-    console.log('📨 消息内容前50字符:', data.content?.substring(0, 50))
+  } else if (data.type === 'system') {
+    // 处理系统消息
+    console.log('📢 系统消息:', data.content)
+    handleSystemMessage(data.content)
+  } else if (data.type === 'status') {
+    console.log('📋 状态消息:', data.content)
+  } else if (data.type === 'error') {
+    console.error('❌ 错误消息:', data.content)
+    ElMessage.error(data.content)
+  } else {
+    // 处理直接的消息对象（可能是离线消息或P2P消息）
+    console.log('📨 处理直接消息:', data)
     
     // 检查是否是文件消息
     if (data.content && FileTransferAPI.isFileMessage(data.content)) {
@@ -528,12 +540,11 @@ const handleIncomingWebSocketMessage = (data) => {
           fileType: fileInfo.fileType,
           fileData: fileInfo.fileData,
           timestamp: data.timestamp ? new Date(data.timestamp).getTime() : Date.now(),
-          senderId: data.sender_username,
-          senderName: data.sender_username,
-          senderUsername: data.sender_username,
+          senderId: data.senderUsername || data.sender_username,
+          senderName: data.senderUsername || data.sender_username,
+          senderUsername: data.senderUsername || data.sender_username,
           receiverId: currentUserId.value,
           avatar: defaultAvatar,
-          isOfflineMessage: data.type === 'offline_message',
           status: 'delivered'
         }
         
@@ -545,84 +556,30 @@ const handleIncomingWebSocketMessage = (data) => {
     }
     
     // 普通文本消息
-    const message = {
-      id: `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type: 'received',
-      content: data.content,
-      timestamp: data.timestamp ? new Date(data.timestamp).getTime() : Date.now(),
-      senderId: data.sender_username,
-      senderName: data.sender_username,
-      senderUsername: data.sender_username,
-      receiverId: currentUserId.value,
-      avatar: defaultAvatar,
-      isOfflineMessage: data.type === 'offline_message',
-      status: 'delivered'
-    }
-    
-    console.log('💬 创建文本消息:', message)
-    addReceivedMessage(message)
-  } else if (data.type === 'system') {
-    // 处理系统消息
-    console.log('📢 系统消息:', data.content)
-    handleSystemMessage(data.content)
-  } else if (data.type === 'status') {
-    console.log('📋 状态消息:', data.content)
-    // 🆕 显示状态消息
-    if (data.content) {
-      ElMessage.info(data.content)
-    }
-  } else if (data.type === 'error') {
-    console.error('❌ 错误消息:', data.content)
-    ElMessage.error(data.content)
-  } else if (data.type === 'system_broadcast') {
-    // 处理系统广播
-    console.log('📢 系统广播:', data.content)
-    handleSystemMessage(data.content)
-  } else {
-    // 🆕 处理其他可能的消息格式
-    console.log('📨 处理未知类型消息:', data)
-    
-    // 检查是否直接包含文件内容
-    if (data.content && FileTransferAPI.isFileMessage(data.content)) {
-      console.log('📁 在未知类型中识别为文件消息')
-      const fileInfo = FileTransferAPI.parseFileMessage(data.content)
-      if (fileInfo) {
-        const fileMessage = {
-          id: `file_received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: 'file',
-          content: `收到文件: ${fileInfo.fileName}`,
-          fileName: fileInfo.fileName,
-          fileSize: fileInfo.fileSize,
-          fileType: fileInfo.fileType,
-          fileData: fileInfo.fileData,
-          timestamp: Date.now(),
-          senderId: data.sender_username || 'unknown',
-          senderName: data.sender_username || 'unknown',
-          senderUsername: data.sender_username || 'unknown',
-          receiverId: currentUserId.value,
-          avatar: defaultAvatar,
-          status: 'delivered'
-        }
-        
-        console.log('📁 从未知类型创建文件消息对象:', fileMessage)
-        addReceivedMessage(fileMessage)
-        ElMessage.success(`收到文件: ${fileInfo.fileName}`)
+    if (data.content && (data.senderUsername || data.sender_username)) {
+      const message = {
+        id: `received_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'received',
+        content: data.content,
+        timestamp: data.timestamp ? new Date(data.timestamp).getTime() : Date.now(),
+        senderId: data.senderUsername || data.sender_username,
+        senderName: data.senderUsername || data.sender_username,
+        senderUsername: data.senderUsername || data.sender_username,
+        receiverId: currentUserId.value,
+        avatar: defaultAvatar,
+        status: 'delivered'
       }
+      
+      console.log('💬 创建文本消息:', message)
+      addReceivedMessage(message)
     }
   }
 }
 
 const downloadReceivedFile = (message) => {
   if (message.fileData && message.fileName) {
-    try {
-      FileTransferAPI.downloadFile(message.fileData, message.fileName)
-      ElMessage.success(`文件 ${message.fileName} 下载完成`)
-    } catch (error) {
-      console.error('文件下载失败:', error)
-      ElMessage.error('文件下载失败')
-    }
-  } else {
-    ElMessage.error('文件数据不完整，无法下载')
+    FileTransferAPI.downloadFile(message.fileData, message.fileName)
+    ElMessage.success('文件下载完成')
   }
 }
 
@@ -640,36 +597,30 @@ const addReceivedMessage = (message) => {
   }
 
   try {
-    console.log('📨 添加接收消息:', {
-      id: message.id,
-      type: message.type,
-      sender: message.senderUsername,
-      content: message.type === 'file' ? `[文件] ${message.fileName}` : message.content?.substring(0, 30) + '...'
-    })
+    console.log('📨 处理接收到的消息:', message)
+    console.log('📨 发送者:', message.senderUsername)
+    console.log('📨 当前选中好友:', selectedFriend.value?.username)
     
     // 保存到本地存储
     addMessageToLocalStorage(message.senderUsername, message)
     
     // 检查是否属于当前聊天
     if (selectedFriend.value && selectedFriend.value.username === message.senderUsername) {
-      console.log('📨 消息属于当前聊天，添加到显示列表')
-      
       // 避免重复添加
       const existingMessage = currentMessages.value.find(m => m && m.id === message.id)
       if (!existingMessage) {
+        console.log('📨 添加消息到当前聊天')
         currentMessages.value.push(message)
         currentMessages.value.sort((a, b) => (a?.timestamp || 0) - (b?.timestamp || 0))
         
         nextTick(() => {
           scrollToBottom()
         })
-        
-        console.log('📨 消息已添加到当前聊天，总消息数:', currentMessages.value.length)
       } else {
         console.log('📨 消息已存在，跳过添加')
       }
     } else {
-      console.log('📨 消息不属于当前聊天，仅更新聊天列表')
+      console.log('📨 消息不属于当前聊天，只更新聊天列表')
     }
     
     // 更新聊天列表
@@ -1058,45 +1009,38 @@ const toggleSteganography = () => {
   console.log('切换隐写模式')
   ElMessage.info('图片隐写功能开发中...')
 }
+
 const handleFileSelect = async (event) => {
   const file = event.target.files[0]
   if (file && selectedFriend.value) {
-    console.log('📁 开始发送文件:', file.name, '到:', selectedFriend.value.username)
+    console.log('发送文件:', file.name)
     
-    try {
-      const result = await FileTransferAPI.sendFile(file, selectedFriend.value.username)
-      
-      if (result.success) {
-        // 立即添加文件消息到聊天记录
-        const fileMessage = {
-          id: `file_sent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          type: 'file',
-          content: `发送了文件: ${file.name}`,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          timestamp: Date.now(),
-          senderId: currentUserId.value,
-          senderName: getCurrentUsername(),
-          senderUsername: getCurrentUsername(),
-          receiverId: selectedFriend.value.id,
-          receiverUsername: selectedFriend.value.username,
-          avatar: defaultAvatar,
-          status: 'delivered'
-        }
-        
-        console.log('📁 添加发送的文件消息到聊天记录')
-        currentMessages.value.push(fileMessage)
-        addMessageToLocalStorage(selectedFriend.value.username, fileMessage)
-        updateChatListWithMessage(fileMessage, selectedFriend.value.username)
-        scrollToBottom()
-        
-        ElMessage.success(`文件 ${file.name} 发送成功`)
-      } else {
-        ElMessage.error(`文件发送失败: ${result.error}`)
+    const result = await FileTransferAPI.sendFile(file, selectedFriend.value.username)
+    
+    if (result.success) {
+      // 添加文件消息到聊天记录
+      const fileMessage = {
+        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'file',
+        content: `发送了文件: ${file.name}`,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        timestamp: Date.now(),
+        senderId: currentUserId.value,
+        senderName: getCurrentUsername(),
+        senderUsername: getCurrentUsername(),
+        receiverId: selectedFriend.value.id,
+        receiverUsername: selectedFriend.value.username,
+        status: 'delivered'
       }
-    } catch (error) {
-      console.error('文件发送过程出错:', error)
+      
+      currentMessages.value.push(fileMessage)
+      addMessageToLocalStorage(selectedFriend.value.username, fileMessage)
+      updateChatListWithMessage(fileMessage, selectedFriend.value.username)
+      scrollToBottom()
+      ElMessage.success('文件发送成功')
+    } else {
       ElMessage.error('文件发送失败')
     }
   }
