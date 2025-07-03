@@ -10,9 +10,13 @@ from fastapi import Depends, HTTPException, status, WebSocket, Query
 from fastapi.security import OAuth2PasswordBearer
 # 从同级目录的 schemas.py 导入 TokenData 模型
 from . import schemas
+# 导入crud（增删改查）操作和models（数据库模型）
 from . import crud, models
+# 从database.py导入数据库会话获取函数
 from .database import get_db
+# 导入SQLAlchemy的Session类，用于类型注解和数据库会话管理
 from sqlalchemy.orm import Session
+# 导入Optional，用于类型注解（表示变量可为None）
 from typing import Optional
 
 # --- 密码哈希部分 ---

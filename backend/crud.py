@@ -140,7 +140,7 @@ def get_current_user(token: str = Depends(auth.oauth2_scheme),db: Session = Depe
     
     return schemas.User.from_orm(user) # '''
 
-# --- 联系人相关的 CRUD (待实现) ---
+# --- 联系人相关的 CRUD  ---
 
 def add_contact(db: Session, user_id: int, friend_id: int) -> Optional[models.Contact]:
     """
