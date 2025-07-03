@@ -1,0 +1,12 @@
+echo "node_modules/
+*.pyc
+__pycache__/
+.env
+.DS_Store
+*.log
+frontend/dist/
+backend/uploads/
+backend/*.db
+.idea/
+.vscode/
+*.sqlite" > .gitignore
