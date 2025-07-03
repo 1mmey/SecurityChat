@@ -3,9 +3,9 @@ from datetime import datetime
 # 导入 SQLAlchemy 的 Session 用于类型提示
 from sqlalchemy.orm import Session
 # 从同级目录导入 models, schemas, 和 auth 模块
-import models
-import schemas
-import auth
+from . import models
+from . import schemas
+from . import auth
 
 # --- 用户相关的 CRUD (Create, Read, Update, Delete) 操作 ---
 

@@ -373,7 +373,7 @@ def get_my_offline_messages(
 
 ##
 @router.delete("/users/self", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int,db: Session = Depends(get_db),current_user: schemas.User = Depends(models.get_current_user)):
+def delete_user(user_id: int,db: Session = Depends(get_db),current_user: schemas.User = Depends(auth.get_current_user)):
     
     """硬删除用户（物理删除，不可恢复）"""
     # 1. 查询用户是否存在

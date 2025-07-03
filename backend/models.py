@@ -3,7 +3,7 @@ from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 # 从同级目录的 database.py 导入 Base 类
-from database import Base
+from .database import Base
 
 # 定义用户模型 (User Model)
 class User(Base):

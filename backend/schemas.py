@@ -1,5 +1,7 @@
 # 导入 Pydantic 的 BaseModel 用于创建数据模型，EmailStr 用于验证邮箱格式
-from pydantic import BaseModel, EmailStr,Optional
+from pydantic import BaseModel, EmailStr
+# 从 typing 模块导入 Optional 用于类型注解（表示变量可为 None）
+from typing import Optional
 # 导入 datetime 用于处理时间
 from datetime import datetime
 
