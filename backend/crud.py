@@ -3,11 +3,9 @@ from datetime import datetime
 # 导入 SQLAlchemy 的 Session 用于类型提示
 from sqlalchemy.orm import Session
 # 从同级目录导入 models, schemas, 和 auth 模块
-from . import models, schemas, auth,database
-
-from fastapi import Depends, HTTPException, status
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
+import models
+import schemas
+import auth
 
 # --- 用户相关的 CRUD (Create, Read, Update, Delete) 操作 ---
 
@@ -185,7 +183,7 @@ def get_contacts(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     :param user_id: 用户ID
     :param skip: 分页查询的起始位置
     :param limit: 每页的数量
-    :return: 联系人列表
+    :return: 联系人列表（包含好友详细信息）
     """
     return db.query(models.Contact).filter(
         models.Contact.user_id == user_id,
@@ -290,7 +288,8 @@ def get_online_friends(db: Session, user_id: int) -> list[models.User]:
 
 def create_message(db: Session, sender_id: int, receiver_id: int, encrypted_content: str) -> models.Message:
     """
-    在数据库中创建一条新的离线消息。
+    在数据库中创建一条新的消息记录。
+    默认情况下，新消息的 is_read 状态为 False。
     """
     db_message = models.Message(
         sender_id=sender_id,

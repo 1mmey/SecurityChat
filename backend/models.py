@@ -3,7 +3,7 @@ from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 # 从同级目录的 database.py 导入 Base 类
-from .database import Base
+from database import Base
 
 # 定义用户模型 (User Model)
 class User(Base):
@@ -42,7 +42,7 @@ class Contact(Base):
     # 关联到发起好友请求的用户
     user = relationship("User", foreign_keys=[user_id], back_populates="contacts")
     # 关联到被添加的好友
-    friend = relationship("User", foreign_keys=[friend_id])
+    friend = relationship("User", foreign_keys=[friend_id], lazy="joined")
 
     # 定义一个联合唯一约束，确保 (user_id, friend_id) 的组合是唯一的，防止重复添加好友
     __table_args__ = (UniqueConstraint('user_id', 'friend_id', name='_user_friend_uc'),)
