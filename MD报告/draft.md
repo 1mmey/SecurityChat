@@ -1448,9 +1448,8 @@ async def websocket_endpoint(
 
 ```
 
-
-
 # connection_manager.py#####################################################################
+```python
 from typing import Dict, List, Optional
 from fastapi import WebSocket
 
@@ -1680,3 +1679,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main()) 
+```
